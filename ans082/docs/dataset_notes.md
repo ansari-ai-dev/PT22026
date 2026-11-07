@@ -45,3 +45,21 @@ done by label mapping when the split file is built.
 - Resized to a maximum of 1024 px on the long side with `src/resize_photos.py`.
 - Stored on Google Drive (`SmartSort_AI/real_photos`), not in Git.
 - Never used for training or tuning; used once at the end to measure the real-world gap.
+
+## Cleaning and splitting
+- **Scan:** all 15,515 images were opened and verified: 0 unreadable files. 34 images are palette
+  mode and are converted to RGB when loaded.
+- **Exact duplicates** (identical bytes, MD5): 37 files in 18 groups. 22 files were removed:
+  16 plain copies, and 6 files that are three images appearing under two different labels
+  (white-glass and plastic or metal), which were removed entirely. 15,493 images remain.
+  Details are in `splits/cleaning_log.csv`.
+- **Near-duplicates:** a perceptual hash (pHash, Hamming distance of 4 or less) gave 232 candidate
+  pairs. pHash alone also matched unrelated items on white backgrounds, so each candidate was
+  verified by the correlation of 32 x 32 grayscale thumbnails (0.90 or higher). 128 pairs were
+  verified, forming 113 groups (largest: 4 images), none mixing labels. All images of a group
+  are always placed in the same split.
+- **Split:** stratified by class at group level, seed 42, 70/15/15, saved as `splits/split_v1.csv`
+  (columns: path, label, split, orig_class): train 10,847, validation 2,323, test 2,323.
+- **Observations:** the dataset contains recoloured copies of the same photo (for example brown
+  and green glass), transparent glass and plastic are sometimes ambiguous, and the `trash`
+  class consists of toothbrushes, face masks and diapers.
