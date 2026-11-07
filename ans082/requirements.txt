@@ -13,3 +13,4 @@ grad-cam>=1.5
 pyyaml>=6.0
 tqdm>=4.66
 imagehash>=4.3
+pytest>=7.0
