@@ -1,6 +1,6 @@
 """Generic training loop for SmartSort AI.
 
-Used for the ResNet-50 baseline (Phase 5) and, later, for the ViT experiments (Phase 6).
+Used for the ResNet-50 baseline (Phase 5) and the ViT experiments (Phase 6).
 Only the train and validation splits are used here. The test split and the real photos
 are never touched during training or tuning.
 
@@ -118,7 +118,8 @@ def train(cfg: dict, resume: bool = False, max_train=None, max_val=None) -> dict
                 device, use_amp, total_params, trainable_params)
 
     dcfg = cfg["data"]
-    train_tf, eval_tf = build_transforms(mean, std, int(dcfg["image_size"]))
+    train_tf, eval_tf = build_transforms(mean, std, int(dcfg["image_size"]),
+                                         dcfg.get("augmentation", "standard"))
     train_ds = SmartSortDataset(dcfg["split_csv"], dcfg["data_root"], "train",
                                 train_tf, max_train, seed)
     val_ds = SmartSortDataset(dcfg["split_csv"], dcfg["data_root"], "val",
