@@ -125,3 +125,8 @@ def test_vit_training_runs_end_to_end(tiny_dataset, tiny_vit_dir, tmp_path):
     summary = train(cfg)
     assert 0 < summary["trainable_parameters"] < summary["total_parameters"]
     assert (tmp_path / "ckpt" / "best.pt").exists()
+
+def test_vit_config_carries_our_class_names(tiny_vit_dir):
+    model, _, _ = build_model(_vit_model_cfg(tiny_vit_dir, freeze=False))
+    assert model.model.config.id2label == {i: n for i, n in enumerate(CLASSES)}
+    assert model.model.config.num_labels == len(CLASSES)

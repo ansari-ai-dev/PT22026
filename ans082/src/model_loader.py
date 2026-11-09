@@ -52,6 +52,9 @@ def build_vit(hf_name: str, num_classes: int, freeze_backbone: bool = False,
         ignore_mismatched_sizes=True,  # the 1000-class ImageNet head is replaced
     )
     model = HFClassifier(hf_model)
+    # keep our class names in the model's own config (used when the model is exported)
+    hf_model.config.id2label = id2label
+    hf_model.config.label2id = label2id
     if freeze_backbone:
         for name, param in model.named_parameters():
             param.requires_grad = name.startswith("model.classifier.")
