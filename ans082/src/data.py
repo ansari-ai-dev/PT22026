@@ -28,23 +28,44 @@ def get_normalization(model_name: str = "google/vit-base-patch16-224"):
     return list(processor.image_mean), list(processor.image_std)
 
 
-def build_transforms(mean, std, image_size: int = IMAGE_SIZE):
-    """Return (train_transform, eval_transform) for the given normalisation values."""
-    train_tf = T.Compose([
-        T.RandomResizedCrop(image_size, scale=(0.7, 1.0)),
-        T.RandomHorizontalFlip(p=0.5),
-        T.RandomRotation(degrees=15),
-        T.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.02),
-        T.ToTensor(),
-        T.Normalize(mean=mean, std=std),
-    ])
-    eval_tf = T.Compose([
+def build_transforms(mean, std, image_size: int = IMAGE_SIZE, augmentation: str = "standard"):
+    """Return (train_transform, eval_transform) for the given normalisation values.
+
+    augmentation="standard" is the default recipe used for E1 to E3.
+    augmentation="strong" adds perspective, blur, grayscale, stronger colour jitter and random
+    erasing, to imitate real phone photos (experiment E4).
+    """
+    if augmentation == "standard":
+        train_steps = [
+            T.RandomResizedCrop(image_size, scale=(0.7, 1.0)),
+            T.RandomHorizontalFlip(p=0.5),
+            T.RandomRotation(degrees=15),
+            T.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.02),
+            T.ToTensor(),
+            T.Normalize(mean=mean, std=std),
+        ]
+    elif augmentation == "strong":
+        train_steps = [
+            T.RandomResizedCrop(image_size, scale=(0.4, 1.0)),
+            T.RandomHorizontalFlip(p=0.5),
+            T.RandomRotation(degrees=30),
+            T.RandomPerspective(distortion_scale=0.2, p=0.3),
+            T.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0.05),
+            T.RandomGrayscale(p=0.05),
+            T.RandomApply([T.GaussianBlur(kernel_size=5, sigma=(0.1, 2.0))], p=0.2),
+            T.ToTensor(),
+            T.Normalize(mean=mean, std=std),
+            T.RandomErasing(p=0.25, scale=(0.02, 0.15), value=0),
+        ]
+    else:
+        raise ValueError(f"Unknown augmentation: {augmentation!r} (use 'standard' or 'strong')")
+    eval_steps = [
         T.Resize(int(image_size * 256 / 224)),
         T.CenterCrop(image_size),
         T.ToTensor(),
         T.Normalize(mean=mean, std=std),
-    ])
-    return train_tf, eval_tf
+    ]
+    return T.Compose(train_steps), T.Compose(eval_steps)
 
 
 def load_rgb(path) -> Image.Image:
