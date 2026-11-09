@@ -10,6 +10,7 @@ from PIL import Image
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from data import CLASSES, SmartSortDataset, build_transforms  # noqa: E402
 from model_loader import build_model  # noqa: E402
+from transformers import ViTConfig, ViTForImageClassification  # noqa: E402
 from train import train  # noqa: E402
 
 TEST_CLASSES = ["battery", "glass", "paper"]
@@ -83,3 +84,44 @@ def test_resume_continues_after_the_last_finished_epoch(tiny_dataset, tmp_path):
     train(_config(tmp_path, csv_path, root, epochs=2), resume=True)
     log = pd.read_csv(tmp_path / "out" / "unit_test_log.csv")
     assert list(log["epoch"]) == [1, 2]
+
+
+@pytest.fixture()
+def tiny_vit_dir(tmp_path):
+    """A very small randomly initialised ViT saved to disk, so no download is needed."""
+    config = ViTConfig(hidden_size=32, num_hidden_layers=2, num_attention_heads=2,
+                       intermediate_size=64, image_size=64, patch_size=16)
+    folder = tmp_path / "tiny_vit"
+    ViTForImageClassification(config).save_pretrained(folder)
+    return folder
+
+
+def _vit_model_cfg(folder, freeze):
+    return {"name": "vit", "hf_name": str(folder), "freeze_backbone": freeze,
+            "mean": [0.5, 0.5, 0.5], "std": [0.5, 0.5, 0.5]}
+
+
+def test_vit_head_only_trains_just_the_classifier(tiny_vit_dir):
+    model, mean, std = build_model(_vit_model_cfg(tiny_vit_dir, freeze=True))
+    trainable = [name for name, p in model.named_parameters() if p.requires_grad]
+    assert trainable
+    assert all(name.startswith("model.classifier.") for name in trainable)
+    model.eval()
+    with torch.no_grad():
+        scores = model(torch.zeros(2, 3, 64, 64))
+    assert scores.shape == (2, len(CLASSES))
+
+
+def test_vit_full_finetuning_trains_every_parameter(tiny_vit_dir):
+    model, _, _ = build_model(_vit_model_cfg(tiny_vit_dir, freeze=False))
+    assert all(p.requires_grad for p in model.parameters())
+
+
+def test_vit_training_runs_end_to_end(tiny_dataset, tiny_vit_dir, tmp_path):
+    csv_path, root = tiny_dataset
+    cfg = _config(tmp_path, csv_path, root, epochs=1)
+    cfg["model"] = _vit_model_cfg(tiny_vit_dir, freeze=True)
+    cfg["train"]["warmup_ratio"] = 0.1
+    summary = train(cfg)
+    assert 0 < summary["trainable_parameters"] < summary["total_parameters"]
+    assert (tmp_path / "ckpt" / "best.pt").exists()

@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 
+import pytest
 import torch
 from PIL import Image
 
@@ -47,3 +48,18 @@ def test_palette_image_converts_to_rgb(tmp_path):
     path = tmp_path / "palette.png"
     Image.new("P", (50, 50)).save(path)
     assert load_rgb(path).mode == "RGB"
+
+
+def test_strong_augmentation_shape_and_randomness():
+    train_tf, eval_tf = build_transforms(MEAN, STD, augmentation="strong")
+    img = Image.effect_noise((300, 300), 60).convert("RGB")
+    torch.manual_seed(0)
+    first, second = train_tf(img), train_tf(img)
+    assert first.shape == (3, 224, 224)
+    assert not torch.equal(first, second)
+    assert eval_tf(img).shape == (3, 224, 224)
+
+
+def test_unknown_augmentation_name_is_rejected():
+    with pytest.raises(ValueError):
+        build_transforms(MEAN, STD, augmentation="extreme")
