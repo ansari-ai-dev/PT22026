@@ -3,8 +3,9 @@
 Run from the ans082 folder, for example:
     python src/summarize_runs.py --results-dir results
 
-It writes experiments_val.csv and experiments_val.md next to the summaries. These are the
-validation results only. Test and real-photo results are added in Phase 7.
+It writes experiments_val.csv and experiments_val.md next to the summaries and a bar chart
+to figures/experiments_val.png. These are the validation results only. Test and real-photo
+results are added in Phase 7.
 """
 import argparse
 import json
@@ -46,6 +47,35 @@ def to_markdown(table: pd.DataFrame) -> str:
     return "\n".join(lines) + "\n"
 
 
+def plot_comparison(table: pd.DataFrame, out_png) -> None:
+    """Bar chart of validation accuracy and macro-F1 for every experiment."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    positions = list(range(len(table)))
+    width = 0.38
+    fig, ax = plt.subplots(figsize=(8, 4.5))
+    acc_bars = ax.bar([p - width / 2 for p in positions], table["best_val_acc"], width,
+                      label="Validation accuracy")
+    f1_bars = ax.bar([p + width / 2 for p in positions], table["best_val_macro_f1"], width,
+                     label="Validation macro-F1")
+    ax.bar_label(acc_bars, fmt="%.3f", fontsize=8)
+    ax.bar_label(f1_bars, fmt="%.3f", fontsize=8)
+    ax.set_xticks(positions)
+    ax.set_xticklabels(table["experiment"], rotation=20, ha="right")
+    lowest = min(table["best_val_acc"].min(), table["best_val_macro_f1"].min())
+    ax.set_ylim(max(0.0, lowest - 0.03), 1.0)
+    ax.set_ylabel("Score (the axis does not start at zero)")
+    ax.set_title("Validation results by experiment")
+    ax.legend(loc="center left", bbox_to_anchor=(1.01, 0.5))
+    fig.tight_layout()
+    Path(out_png).parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_png, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -57,6 +87,7 @@ def main() -> None:
     out_dir = Path(args.results_dir)
     table.to_csv(out_dir / "experiments_val.csv", index=False)
     (out_dir / "experiments_val.md").write_text(to_markdown(table), encoding="utf-8")
+    plot_comparison(table, out_dir / "figures" / "experiments_val.png")
     print(to_markdown(table))
 
 

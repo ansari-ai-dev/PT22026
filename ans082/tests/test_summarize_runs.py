@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from summarize_runs import collect, to_markdown  # noqa: E402
+from summarize_runs import collect, plot_comparison, to_markdown  # noqa: E402
 
 
 def _write_summary(folder, name, trainable, best_f1):
@@ -30,3 +30,11 @@ def test_markdown_has_a_header_and_one_line_per_row(tmp_path):
     lines = text.strip().splitlines()
     assert len(lines) == 3
     assert lines[0].startswith("| experiment")
+
+
+def test_comparison_plot_is_written(tmp_path):
+    _write_summary(tmp_path, "E3_vit_full", 85_806_346, 0.9825)
+    _write_summary(tmp_path, "E2_vit_head_only", 7_690, 0.93)
+    out_png = tmp_path / "figures" / "experiments_val.png"
+    plot_comparison(collect(tmp_path), out_png)
+    assert out_png.exists() and out_png.stat().st_size > 0
