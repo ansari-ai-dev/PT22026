@@ -5,7 +5,8 @@ Usage (from the ans082 folder, venv active):
 """
 import argparse
 from pathlib import Path
-#ieiiuiue
+
+#iuoiuoiuii
 
 from PIL import Image, ImageOps
 
